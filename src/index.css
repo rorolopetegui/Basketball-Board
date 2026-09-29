@@ -1,0 +1,33 @@
+:root {
+  color-scheme: dark;
+  --bg: #0b0d12;
+  --panel: #151922;
+  --line: #2a303c;
+  --text: #f2f4f8;
+  --muted: #9aa3b2;
+  --digit: #ffb020;
+  --alert: #ff4d4f;
+  --accent: #3d8bfd;
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+.placeholder {
+  display: grid;
+  place-items: center;
+  height: 100%;
+}
