@@ -47,6 +47,7 @@ export function setClock(clock: Clock, ms: number, now: number): Clock // keeps 
 ```
 
 `remaining = startedAt === null ? remainingMs : max(0, remainingMs - (now - startedAt))`.
+`setClock` on a running clock restarts the count from `now`: `{ remainingMs: ms, startedAt: now }`.
 Clocks are timestamps, not counters: a window that reloads, or a board that renders late, still shows the
 exact time.
 
@@ -97,13 +98,19 @@ export type Action =
   | { type: 'newGame'; at: number }
   | { type: 'tick'; at: number }
 export function reduce(state: GameState, action: Action): GameState
+
+// An action before it is time-stamped; the UI and the shortcut table work with commands.
+type WithoutAt<A> = A extends unknown ? Omit<A, 'at'> : never
+export type Command = WithoutAt<Action>
 ```
+
+"Running" always means the game clock is running (`isRunning(state.game)`).
 
 `reduce` first applies `settle(state, action.at)` (2.4), then:
 
 | Action | Effect |
 |---|---|
-| `toggleRunning` | Running → stop both clocks. Stopped → start the game clock (no-op if it is 0) and start the shot clock if its remaining is above 0. |
+| `toggleRunning` | Running → stop both clocks. Stopped with the game clock at 0 → nothing. Otherwise start the game clock, and the shot clock too if its remaining is above 0. |
 | `resetShot` | Shot clock = `ms`. It keeps running if the game clock is running; otherwise it stays stopped. |
 | `score` | `score = max(0, score + points)`. |
 | `foul` | `fouls = max(0, fouls + delta)`. No upper limit. |
@@ -111,7 +118,7 @@ export function reduce(state: GameState, action: Action): GameState
 | `adjustShot` | Only while stopped. Shot clock clamped to `[0, 24_000]`. |
 | `nextPeriod` | Only while stopped. `period + 1`; game clock = the new period's length; shot clock = 24 s; both stopped. Team fouls reset to 0 when entering periods 2, 3 and 4. Entering an overtime (5+) keeps the fouls (FIBA: overtime fouls count as the 4th quarter). |
 | `setTeam` | `name` is trimmed and cut to `MAX_NAME_LENGTH`; an empty name keeps the old one. `color` must be `#rrggbb`, otherwise ignored. |
-| `setSettings` | Integers only: `periodMinutes` 1–20, `overtimeMinutes` 1–10, clamped; non-finite values ignored. If the game clock is stopped and still equals the old length of the current period (the period has not started), it is set to the new length. |
+| `setSettings` | Non-finite values are ignored; others are rounded to an integer and clamped: `periodMinutes` 1–20, `overtimeMinutes` 1–10. If the game clock is stopped and still equals the old length of the current period (the period has not started), it is set to the new length. |
 | `newGame` | Back to period 1 with scores, fouls and clocks reset; keeps team names, colors and settings. |
 | `tick` | Only the settle step. |
 
@@ -172,9 +179,23 @@ Two windows of the same `index.html`: the control window (no hash) and the board
 - localStorage can throw (private mode, blocked storage): wrap every access in try/catch; the app keeps
   working without persistence.
 
-Suggested API: `saveGame(state)`, `loadGame(): GameState | null`, `isMessage(data): data is LinkMessage`,
-plus small React hooks for each side (e.g. `useBoardState()` and a `useControlLink(state)` that posts on
-change and answers `hello`).
+API:
+
+```ts
+export type LinkMessage =
+  | { app: 'lbaboard'; kind: 'state'; state: GameState }
+  | { app: 'lbaboard'; kind: 'hello' }
+export const STORAGE_KEY = 'lbaboard.game'
+export function saveGame(state: GameState): void          // never throws
+export function loadGame(): GameState | null              // parseGame of the stored JSON; null on any failure
+export function isMessage(data: unknown): data is LinkMessage  // a 'state' message must pass parseGame
+export function useBoardState(): GameState                // board side: storage + hello + message/storage events
+export function useControlLink(state: GameState): { openBoard: () => void }
+```
+
+`useControlLink` keeps the board window returned by `window.open` in a ref (no module-level state), saves and
+posts on every state change, answers `hello`, and `openBoard()` opens the board or focuses it if it is still
+open (see 7). Effects must be safe under React StrictMode (subscribe and unsubscribe symmetrically).
 
 ## 6. Board window (`#board`)
 
@@ -202,6 +223,8 @@ Read-only, built for a 16:9 screen seen from far away; everything scales with th
 - `document.title` = `"LBABoard — Tablero"`.
 - The board re-renders about 20 times per second while a clock runs (`useNow`), computing the displayed time
   from the state and its own clock; it never mutates the state.
+- `useNow(active: boolean, intervalMs = 50): number` returns `Date.now()` and, while `active`, re-renders every
+  `intervalMs` (cleared when inactive or unmounted).
 
 ## 7. Control window (no hash)
 
@@ -219,8 +242,11 @@ For a laptop screen (≥ 1280×720). `document.title` = `"LBABoard — Mesa de c
   (`<input type="color">`), score with `+1` `+2` `+3` `−1` buttons, team fouls with `+1` `−1` buttons.
 - **Settings:** minutes per quarter and per overtime (number inputs).
 - **Shortcut legend** listing the table below.
-- The control window dispatches `tick` about 20 times per second while running. When a `tick` stops the
-  clocks (shot clock or game clock ran out) it plays the buzzer unless muted.
+- State: `useReducer(reduce, …)` initialised from `loadGame() ?? initialGame()`; the UI sends `Command`s and a
+  small `send(command)` stamps `at: Date.now()` before dispatching.
+- The control window sends `tick` about 20 times per second while running. When an update turns the game
+  clock from running to stopped and the new state has the game clock or the shot clock at 0 (a clock ran out,
+  not a manual stop), it plays the buzzer unless muted.
 - Every button has an accessible name (its visible text, or `aria-label` naming the team, e.g.
   `aria-label="LOCAL +2"`).
 
@@ -240,7 +266,16 @@ Matched on `KeyboardEvent.code`, so they work on any keyboard layout:
   Alt or Meta is held, and on auto-repeat (`event.repeat`).
 - `Space` calls `preventDefault()` on keydown **and keyup**, so a focused button is never also clicked (a
   button activates on the keyup of Space) and the page does not scroll.
-- Export the table as data (`SHORTCUTS`) so the legend is rendered from it.
+- API:
+
+```ts
+export interface Shortcut { code: string; key: string; label: string; command: Command }
+export const SHORTCUTS: readonly Shortcut[]        // `key` is what the legend shows: 'Espacio', 'Z', 'Q', ...
+export function shortcutFor(event: KeyboardEvent): Command | null  // applies the ignore rules above
+export function useShortcuts(onCommand: (command: Command) => void): void  // window keydown + keyup listeners
+```
+
+  The legend in the control window is rendered from `SHORTCUTS`.
 
 ## 8. Buzzer (`audio/buzzer.ts`)
 
