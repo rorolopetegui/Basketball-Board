@@ -1,0 +1,122 @@
+.board {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+  font-family: system-ui, sans-serif;
+  user-select: none;
+  cursor: default;
+}
+
+.board-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 2vh 3vw;
+}
+
+.team {
+  display: flex;
+  align-items: center;
+  gap: min(1vw, 1.5vh);
+}
+
+.team-bar {
+  width: min(0.8vw, 1vh);
+  height: min(4vh, 3vw);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.team-name {
+  font-size: min(3.5vh, 2.5vw);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  max-width: 28vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.period {
+  font-size: min(2.5vh, 2vw);
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  align-self: center;
+  flex: 1;
+  text-align: center;
+}
+
+.board-middle {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 3vw;
+}
+
+.score {
+  font-size: min(12vh, 8vw);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  width: 25vw;
+  text-align: center;
+}
+
+.clocks {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: min(1vh, 0.8vw);
+}
+
+.game-clock {
+  font-size: min(10vh, 7vw);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--digit);
+}
+
+.shot-clock {
+  font-size: min(5vh, 3.5vw);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.board-bottom {
+  display: flex;
+  justify-content: space-between;
+  padding: 2vh 3vw;
+}
+
+.fouls {
+  font-size: min(2.5vh, 2vw);
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.alert {
+  color: var(--alert) !important;
+}
+
+.fullscreen-hint {
+  position: absolute;
+  bottom: 3vh;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: min(2.5vh, 2vw);
+  color: var(--muted);
+  animation: hint-fade 1s ease 3s forwards;
+}
+
+@keyframes hint-fade {
+  to {
+    opacity: 0;
+  }
+}
