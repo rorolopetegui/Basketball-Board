@@ -30,6 +30,7 @@ export interface GameState {
 export type Action =
   | { type: 'tick'; at: number }
   | { type: 'toggleRunning'; at: number }
+  | { type: 'toggleShot'; at: number }
   | { type: 'resetShot'; at: number; ms: number }
   | { type: 'score'; at: number; team: TeamId; points: 1 | 2 | 3 | -1 }
   | { type: 'foul'; at: number; team: TeamId; delta: 1 | -1 }
@@ -77,14 +78,24 @@ export function initialGame(
   return state
 }
 
+function expiry(clock: Clock): number | null {
+  return clock.startedAt === null ? null : clock.startedAt + clock.remainingMs
+}
+
+/** Stops the clocks that ran out by `now`, each at the instant it reached 0. The shot clock stops alone (FIBA running
+ *  time: the game clock goes on until the official stops it); when the game clock runs out, both stop. */
 export function settle(state: GameState, now: number): GameState {
-  if (state.game.startedAt === null) return state
-  let stopAt = state.game.startedAt + state.game.remainingMs
-  if (state.shot.startedAt !== null) {
-    stopAt = Math.min(stopAt, state.shot.startedAt + state.shot.remainingMs)
+  const shotEnd = expiry(state.shot)
+  const gameEnd = expiry(state.game)
+  let { game, shot } = state
+  if (shotEnd !== null && shotEnd <= now && (gameEnd === null || shotEnd <= gameEnd)) {
+    shot = stopClock(shot, shotEnd)
   }
-  if (stopAt > now) return state
-  return { ...state, game: stopClock(state.game, stopAt), shot: stopClock(state.shot, stopAt) }
+  if (gameEnd !== null && gameEnd <= now) {
+    game = stopClock(game, gameEnd)
+    shot = stopClock(shot, gameEnd)
+  }
+  return game === state.game && shot === state.shot ? state : { ...state, game, shot }
 }
 
 export function shotClockVisible(state: GameState, now: number): boolean {
@@ -108,6 +119,14 @@ export function reduce(state: GameState, action: Action): GameState {
       const shot =
         remaining(settled.shot, action.at) > 0 ? startClock(settled.shot, action.at) : settled.shot
       return { ...settled, game: startClock(settled.game, action.at), shot }
+    }
+    case 'toggleShot': {
+      // Pauses or resumes the shot clock alone; it only ever runs while the game clock does.
+      if (!isRunning(settled.game)) return settled
+      const shot = isRunning(settled.shot)
+        ? stopClock(settled.shot, action.at)
+        : startClock(settled.shot, action.at)
+      return shot === settled.shot ? settled : { ...settled, shot }
     }
     case 'resetShot':
       // The shot clock follows the game clock: after a violation it sits stopped at 0 while the game clock may

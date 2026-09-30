@@ -88,6 +88,7 @@ Every action carries `at: number` (epoch ms, taken by the caller with `Date.now(
 ```ts
 export type Action =
   | { type: 'toggleRunning'; at: number }
+  | { type: 'toggleShot'; at: number }
   | { type: 'resetShot'; ms: 24_000 | 14_000; at: number }
   | { type: 'score'; team: TeamId; points: 1 | 2 | 3 | -1; at: number }
   | { type: 'foul'; team: TeamId; delta: 1 | -1; at: number }
@@ -112,6 +113,7 @@ export type Command = WithoutAt<Action>
 | Action | Effect |
 |---|---|
 | `toggleRunning` | Running → stop both clocks. Stopped with the game clock at 0 → nothing. Otherwise start the game clock, and the shot clock too if its remaining is above 0. |
+| `toggleShot` | Pauses or resumes the shot clock alone. Only while the game clock runs (the shot clock never runs while the game clock is stopped); resuming a shot clock at 0 does nothing. |
 | `resetShot` | Shot clock = `ms`, running if and only if the game clock is running (so a reset after a violation, with the shot clock stopped at 0 and play resumed, starts it). |
 | `score` | `score = max(0, score + points)`. |
 | `foul` | `fouls = max(0, fouls + delta)`. No upper limit. |
@@ -125,17 +127,15 @@ export type Command = WithoutAt<Action>
 
 ### 2.4 Settle (expiry)
 
-`settle(state, now)`: when the game clock is running and a running clock has reached 0 by `now`, stop both
-clocks **at the instant the first one reached 0**, not at `now`:
+`settle(state, now)` stops every running clock that has reached 0 by `now`, **at the instant it reached 0**
+(expiry = `startedAt + remainingMs`), not at `now`:
 
-- expiry of a running clock = `startedAt + remainingMs`;
-- `stopAt = min(expiry of the game clock, expiry of the shot clock if it is running)`, and it applies only
-  when `stopAt <= now`;
-- both clocks become `stopClock(clock, stopAt)`.
+- The shot clock expiring stops **only the shot clock**, at 0. FIBA uses running time: the game clock goes on
+  until the official stops it on the whistle.
+- The game clock expiring stops both clocks at that instant (the shot clock keeps what it had then, unless it had
+  already expired earlier).
 
-So when the shot clock expires first, the shot clock shows 0 and the game clock keeps the time it had at that
-moment. When the game clock expires first (possible only while the shot clock is off, see 2.5), the game clock
-shows 0. Otherwise `settle` returns the state unchanged (same object).
+Otherwise `settle` returns the state unchanged (same object).
 
 ### 2.5 Shot clock off
 
@@ -239,8 +239,10 @@ windows put the clock panel on top with the teams below (one column on a phone).
   `window.confirm('¿Empezar un partido nuevo? Se borran el marcador, las faltas y el reloj.')`), a sound
   toggle (`Sonido: sí` / `Sonido: no`, remembered in localStorage key `lbaboard.muted`).
 - **Clock panel:** the period, game clock and shot clock as on the board (the shot clock is dimmed instead of
-  hidden when it is off); a large `Iniciar` / `Detener` button; `24` and `14` buttons, always enabled (resets
-  happen while the clock runs); `−1 s` / `+1 s` steppers labelled `Juego` and `Posesión` (accessible names
+  hidden when it is off); a large `Iniciar` / `Detener` button (the game clock; stopping it stops both);
+  `24` and `14` buttons, always enabled (resets happen while the clock runs); `Pausar posesión` /
+  `Reanudar posesión` for the shot clock alone (enabled only while the game clock runs and the shot clock is
+  running or above 0); `−1 s` / `+1 s` steppers labelled `Juego` and `Posesión` (accessible names
   `Juego −1 s`, `Posesión +1 s`, …; disabled while running); `Siguiente período` (disabled while running; when
   the game clock is above 0 it asks `window.confirm('El reloj no llegó a 0. ¿Pasar al período siguiente?')`).
 - **Two team panels** (home left, away right, top border in the team color): name input (max 12 characters;
@@ -251,9 +253,8 @@ windows put the clock panel on top with the teams below (one column on a phone).
 - **Shortcut legend** listing the table below.
 - State: `useReducer(reduce, …)` initialised from `loadGame() ?? initialGame()`; the UI sends `Command`s and a
   small `send(command)` stamps `at: Date.now()` before dispatching.
-- The control window sends `tick` about 20 times per second while running. When an update turns the game
-  clock from running to stopped and the new state has the game clock or the shot clock at 0 (a clock ran out,
-  not a manual stop), it plays the buzzer unless muted.
+- The control window sends `tick` about 20 times per second while running. When an update stops a running clock
+  (game or shot) at 0 — a clock ran out, not a manual stop or pause — it plays the buzzer once unless muted.
 - Every button has an accessible name (its visible text, or `aria-label` naming the team, e.g.
   `aria-label="LOCAL +2"`).
 
@@ -265,6 +266,7 @@ Matched on `KeyboardEvent.code`, so they work on any keyboard layout:
 |---|---|---|---|
 | `Space` | start / stop | | |
 | `KeyZ` | shot clock 24 | `KeyX` | shot clock 14 |
+| `KeyC` | pause / resume the shot clock | | |
 | `KeyQ` `KeyW` `KeyE` | home +1 / +2 / +3 | `KeyU` `KeyI` `KeyO` | away +1 / +2 / +3 |
 | `KeyA` | home −1 point | `KeyJ` | away −1 point |
 | `KeyS` / `KeyD` | home foul +1 / −1 | `KeyK` / `KeyL` | away foul +1 / −1 |

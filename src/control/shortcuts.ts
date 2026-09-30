@@ -12,6 +12,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
   { code: 'Space', key: 'Espacio', label: 'Iniciar / detener', command: { type: 'toggleRunning' } },
   { code: 'KeyZ', key: 'Z', label: 'Posesión 24', command: { type: 'resetShot', ms: SHOT_FULL_MS } },
   { code: 'KeyX', key: 'X', label: 'Posesión 14', command: { type: 'resetShot', ms: SHOT_SHORT_MS } },
+  { code: 'KeyC', key: 'C', label: 'Pausar / reanudar posesión', command: { type: 'toggleShot' } },
   { code: 'KeyQ', key: 'Q', label: 'Local +1', command: { type: 'score', team: 'home', points: 1 } },
   { code: 'KeyW', key: 'W', label: 'Local +2', command: { type: 'score', team: 'home', points: 2 } },
   { code: 'KeyE', key: 'E', label: 'Local +3', command: { type: 'score', team: 'home', points: 3 } },

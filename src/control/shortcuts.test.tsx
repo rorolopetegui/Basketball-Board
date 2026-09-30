@@ -16,10 +16,11 @@ function keydownOn(
 describe('SHORTCUTS', () => {
   it('maps every code to its command', () => {
     const byCode = new Map<string, Command>(SHORTCUTS.map((s) => [s.code, s.command]))
-    expect(byCode.size).toBe(15)
+    expect(byCode.size).toBe(16)
     expect(byCode.get('Space')).toEqual({ type: 'toggleRunning' })
     expect(byCode.get('KeyZ')).toEqual({ type: 'resetShot', ms: 24_000 })
     expect(byCode.get('KeyX')).toEqual({ type: 'resetShot', ms: 14_000 })
+    expect(byCode.get('KeyC')).toEqual({ type: 'toggleShot' })
     expect(byCode.get('KeyQ')).toEqual({ type: 'score', team: 'home', points: 1 })
     expect(byCode.get('KeyW')).toEqual({ type: 'score', team: 'home', points: 2 })
     expect(byCode.get('KeyE')).toEqual({ type: 'score', team: 'home', points: 3 })

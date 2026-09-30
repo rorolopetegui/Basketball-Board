@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { remaining } from './clock'
 import { initialGame, periodLengthMs, reduce, settle, shotClockVisible, type Action, type GameState } from './game'
 
 function runningState(at: number, gameMs = 600_000, shotMs = 24_000): GameState {
@@ -70,6 +71,34 @@ describe('toggleRunning', () => {
     const next = reduce(state, { type: 'toggleRunning', at: 4_000 })
     expect(next.game).toEqual({ remainingMs: 597_000, startedAt: null })
     expect(next.shot).toEqual({ remainingMs: 21_000, startedAt: null })
+  })
+})
+
+describe('toggleShot', () => {
+  it('pauses the shot clock alone while the game clock keeps running', () => {
+    const next = reduce(runningState(0), { type: 'toggleShot', at: 4_000 })
+    expect(next.shot).toEqual({ remainingMs: 20_000, startedAt: null })
+    expect(next.game).toEqual({ remainingMs: 600_000, startedAt: 0 })
+  })
+
+  it('resumes a paused shot clock from its remaining time', () => {
+    const paused = { ...runningState(0), shot: { remainingMs: 20_000, startedAt: null } }
+    expect(reduce(paused, { type: 'toggleShot', at: 9_000 }).shot).toEqual({ remainingMs: 20_000, startedAt: 9_000 })
+  })
+
+  it('does nothing while the game clock is stopped or when the shot clock is at 0', () => {
+    const stopped = initialGame()
+    expect(reduce(stopped, { type: 'toggleShot', at: 1_000 })).toBe(stopped)
+    const expired = { ...runningState(0), shot: { remainingMs: 0, startedAt: null } }
+    expect(reduce(expired, { type: 'toggleShot', at: 1_000 })).toBe(expired)
+  })
+
+  it('is overridden by the game clock: stopping the game stops the shot clock, starting it starts both', () => {
+    const paused = { ...runningState(0), shot: { remainingMs: 20_000, startedAt: null } }
+    const stopped = reduce(paused, { type: 'toggleRunning', at: 5_000 })
+    expect(stopped.game.startedAt).toBeNull()
+    const restarted = reduce(stopped, { type: 'toggleRunning', at: 8_000 })
+    expect(restarted.shot).toEqual({ remainingMs: 20_000, startedAt: 8_000 })
   })
 })
 
@@ -277,11 +306,19 @@ describe('newGame', () => {
 })
 
 describe('settle', () => {
-  it('stops both clocks at the shot expiry instant when the shot clock runs out first', () => {
+  it('stops only the shot clock at its expiry instant; the game clock keeps running (FIBA running time)', () => {
     const state = runningState(0)
     const next = settle(state, 30_000)
-    expect(next.game).toEqual({ remainingMs: 576_000, startedAt: null })
     expect(next.shot).toEqual({ remainingMs: 0, startedAt: null })
+    expect(next.game).toBe(state.game)
+    expect(remaining(next.game, 30_000)).toBe(570_000)
+  })
+
+  it('stops the game clock later at its own expiry after the shot clock ran out', () => {
+    const state = runningState(0, 30_000, 24_000)
+    const next = settle(state, 40_000)
+    expect(next.shot).toEqual({ remainingMs: 0, startedAt: null })
+    expect(next.game).toEqual({ remainingMs: 0, startedAt: null })
   })
 
   it('stops both clocks at the game expiry instant when the game clock runs out first', () => {
@@ -340,6 +377,7 @@ describe('Action exhaustiveness', () => {
     const actions: Action[] = [
       { type: 'tick', at: 0 },
       { type: 'toggleRunning', at: 0 },
+      { type: 'toggleShot', at: 0 },
       { type: 'resetShot', at: 0, ms: 14_000 },
       { type: 'score', at: 0, team: 'home', points: 3 },
       { type: 'foul', at: 0, team: 'away', delta: 1 },

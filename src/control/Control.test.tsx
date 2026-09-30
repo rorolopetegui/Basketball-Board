@@ -89,16 +89,38 @@ describe('Control', () => {
     }
   })
 
-  it('stops both clocks when the shot clock runs out and sounds the buzzer once', () => {
+  it('stops only the shot clock when it runs out (running time) and sounds the buzzer once', () => {
     renderWith()
     fireEvent.click(button('Iniciar'))
     advance(25_000)
-    expect(button('Iniciar')).toBeInTheDocument()
-    expect(screen.getByText('9:36')).toBeInTheDocument()
+    expect(button('Detener')).toBeInTheDocument()
+    expect(screen.getByText('9:35')).toBeInTheDocument()
     expect(screen.getByTestId('shot-clock')).toHaveTextContent('0.0')
     expect(playBuzzer).toHaveBeenCalledTimes(1)
     advance(5_000)
+    expect(screen.getByText('9:30')).toBeInTheDocument()
+    expect(screen.getByTestId('shot-clock')).toHaveTextContent('0.0')
     expect(playBuzzer).toHaveBeenCalledTimes(1)
+    fireEvent.click(button('24'))
+    advance(1_000)
+    expect(screen.getByTestId('shot-clock')).toHaveTextContent('23')
+  })
+
+  it('pauses and resumes the shot clock on its own while the game clock runs', () => {
+    renderWith()
+    expect(button('Pausar posesión')).toBeDisabled()
+    fireEvent.click(button('Iniciar'))
+    advance(2_000)
+    fireEvent.click(button('Pausar posesión'))
+    advance(3_000)
+    expect(screen.getByTestId('shot-clock')).toHaveTextContent('22')
+    expect(screen.getByText('9:55')).toBeInTheDocument()
+    expect(playBuzzer).not.toHaveBeenCalled()
+    fireEvent.keyDown(window, { code: 'KeyC' })
+    advance(2_000)
+    expect(screen.getByTestId('shot-clock')).toHaveTextContent('20')
+    fireEvent.click(button('Detener'))
+    expect(button('Pausar posesión')).toBeDisabled()
   })
 
   it('sounds the buzzer when the game clock runs out with the shot clock off', () => {

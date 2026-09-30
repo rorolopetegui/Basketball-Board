@@ -13,7 +13,7 @@ y tiempos extra, y faltas de equipo (reglas FIBA).
 
 | Tecla | Acción | Tecla | Acción |
 |---|---|---|---|
-| `Espacio` | iniciar / detener | | |
+| `Espacio` | iniciar / detener el partido | `C` | pausar / reanudar solo la posesión |
 | `Z` | posesión a 24 | `X` | posesión a 14 |
 | `Q` `W` `E` | local +1 / +2 / +3 | `U` `I` `O` | visita +1 / +2 / +3 |
 | `A` | local −1 punto | `J` | visita −1 punto |
@@ -23,8 +23,9 @@ Si se cierra o recarga la ventana a mitad de partido, no se pierde nada: el marc
 donde estaban.
 
 Detalles de reglas (FIBA): el reloj de posesión se apaga solo cuando queda menos tiempo de juego que de posesión;
-cuando la posesión llega a 0 se detienen los dos relojes y suena la chicharra (se puede silenciar con
-**Sonido**); las faltas de equipo se ponen en rojo desde la 4.ª (la siguiente da tiros libres) y se reinician
+cuando la posesión llega a 0 suena la chicharra (se puede silenciar con **Sonido**) y se detiene solo la
+posesión: el reloj del partido sigue corriendo hasta que lo detengas (reloj corrido). **Detener** para los dos
+relojes; **Pausar posesión** (o `C`) para solo el de posesión. Las faltas de equipo se ponen en rojo desde la 4.ª (la siguiente da tiros libres) y se reinician
 en cada cuarto, salvo en el tiempo extra, que sigue contando las del 4.º cuarto.
 
 ## Publicarlo en internet (opcional, gratis)

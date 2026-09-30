@@ -285,6 +285,12 @@
   font-size: 22px;
 }
 
+.btn--shot-toggle {
+  min-width: 220px;
+  border-color: var(--shot);
+  color: var(--shot);
+}
+
 .clock-panel__adjust {
   display: flex;
   flex-wrap: wrap;

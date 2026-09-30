@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
-import { isRunning, remaining } from '../game/clock'
+import { isRunning, remaining, type Clock } from '../game/clock'
 import { formatGameClock, formatShotClock, periodLabel } from '../game/format'
 import {
   initialGame,
@@ -48,12 +48,13 @@ function minuteOptions(max: number) {
   ))
 }
 
-/** A running clock reached 0 and stopped the game: the buzzer moment (a manual stop is not one). */
+/** A running clock stopped because it reached 0: the buzzer moment (a manual stop or pause is not one). */
+function ranOut(before: Clock, after: Clock): boolean {
+  return isRunning(before) && !isRunning(after) && after.remainingMs === 0
+}
+
 function clockRanOut(before: GameState, after: GameState): boolean {
-  if (!isRunning(before.game) || isRunning(after.game)) return false
-  return (
-    after.game.remainingMs === 0 || (isRunning(before.shot) && after.shot.remainingMs === 0)
-  )
+  return ranOut(before.game, after.game) || ranOut(before.shot, after.shot)
 }
 
 function Stepper({ label, onStep, disabled }: { label: string; onStep: (ms: number) => void; disabled: boolean }) {
@@ -75,6 +76,7 @@ export function Control() {
   const [muted, setMuted] = useState(loadMuted)
   const { openBoard } = useControlLink(state)
   const running = isRunning(state.game)
+  const shotRunning = isRunning(state.shot)
   const now = useNow(running)
   const gameMs = remaining(state.game, now)
   const shotMs = remaining(state.shot, now)
@@ -157,6 +159,14 @@ export function Control() {
               14
             </button>
           </div>
+          <button
+            type="button"
+            className="btn btn--shot-toggle"
+            disabled={!running || (!shotRunning && shotMs <= 0)}
+            onClick={() => send({ type: 'toggleShot' })}
+          >
+            {running && !shotRunning && shotMs > 0 ? 'Reanudar posesión' : 'Pausar posesión'}
+          </button>
           <div className="clock-panel__adjust">
             <Stepper label="Juego" disabled={running} onStep={(deltaMs) => send({ type: 'adjustGame', deltaMs })} />
             <Stepper label="Posesión" disabled={running} onStep={(deltaMs) => send({ type: 'adjustShot', deltaMs })} />
