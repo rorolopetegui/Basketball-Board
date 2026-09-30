@@ -30,8 +30,8 @@ en cada cuarto, salvo en el tiempo extra, que sigue contando las del 4.º cuarto
 
 ## Publicarlo en internet (opcional, gratis)
 
-- **GitHub Pages:** subí el repositorio a GitHub y activá *Settings → Pages → Source: GitHub Actions*. El
-  workflow `.github/workflows/pages.yml` prueba y publica cada cambio en `main`.
+- **GitHub Pages:** en el repositorio activá *Settings → Pages → Source: GitHub Actions*. El workflow
+  `.github/workflows/ci.yml` prueba cada cambio en `main` y, con Pages activado, lo publica.
 - **Vercel:** importá el repositorio; detecta Vite solo (build `npm run build`, carpeta `dist`).
 
 ## Desarrollo
