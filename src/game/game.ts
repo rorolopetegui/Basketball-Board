@@ -31,7 +31,7 @@ export type Action =
   | { type: 'tick'; at: number }
   | { type: 'toggleRunning'; at: number }
   | { type: 'resetShot'; at: number; ms: number }
-  | { type: 'score'; at: number; team: TeamId; points: 1 | 2 | 3 }
+  | { type: 'score'; at: number; team: TeamId; points: 1 | 2 | 3 | -1 }
   | { type: 'foul'; at: number; team: TeamId; delta: 1 | -1 }
   | { type: 'adjustGame'; at: number; deltaMs: number }
   | { type: 'adjustShot'; at: number; deltaMs: number }
