@@ -7,7 +7,12 @@ y tiempos extra, y faltas de equipo (reglas FIBA).
 No hay que instalar nada ni saber programar: es un solo archivo que se abre con el navegador y funciona sin
 internet.
 
-## Descargarlo
+## Usarlo online
+
+Abrí **https://rorolopetegui.github.io/LBABoard/** en Chrome, Edge o Firefox y listo. Una vez cargada, la página
+sigue funcionando aunque se corte internet. El partido queda guardado solo en tu navegador.
+
+## Descargarlo (para usarlo sin internet)
 
 1. En esta página, tocá el botón verde **Code** y después **Download ZIP**.
 2. Descomprimí el ZIP (clic derecho → *Extraer todo…*).
@@ -20,7 +25,7 @@ archivo alcanza.
 
 ## Usarlo
 
-1. Con `LBABoard.html` abierto ves la **mesa de control**. Tocá **Abrir tablero**: aparece una segunda ventana
+1. Con la página abierta (el link o `LBABoard.html`) ves la **mesa de control**. Tocá **Abrir tablero**: aparece una segunda ventana
    con el tablero. (Si el navegador avisa que bloqueó una ventana emergente, tocá *Permitir*.)
 2. Arrastrá la ventana del tablero a la TV o al proyector (pantalla extendida) y hacé doble clic sobre ella
    para verla en pantalla completa.
@@ -62,5 +67,5 @@ npm run release    # genera el build y actualiza LBABoard.html (hay que commitea
 ```
 
 El CI (`.github/workflows/ci.yml`) corre tests, lint y build en cada cambio en `main`, y falla si `LBABoard.html`
-no coincide con el código. Si en *Settings → Pages* se elige *Source: GitHub Actions*, además lo publica en
-GitHub Pages. La especificación completa está en [`docs/SPEC.md`](docs/SPEC.md).
+no coincide con el código, y publica el build en GitHub Pages (*Settings → Pages → Source: GitHub Actions*).
+La especificación completa está en [`docs/SPEC.md`](docs/SPEC.md).
