@@ -118,6 +118,15 @@ describe('useShortcuts', () => {
     expect(onCommand).toHaveBeenCalledWith({ type: 'toggleRunning' })
   })
 
+  it('claims a held Space (auto-repeat) without toggling again', () => {
+    const onCommand = vi.fn()
+    renderHook(() => useShortcuts(onCommand))
+    const repeat = new KeyboardEvent('keydown', { code: 'Space', key: ' ', repeat: true, bubbles: true, cancelable: true })
+    window.dispatchEvent(repeat)
+    expect(repeat.defaultPrevented).toBe(true)
+    expect(onCommand).not.toHaveBeenCalled()
+  })
+
   it('does not activate a focused button when Space is pressed', () => {
     const onClick = vi.fn()
     const onCommand = vi.fn()

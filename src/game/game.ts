@@ -1,4 +1,4 @@
-import { isRunning, setClock, startClock, stopClock, remaining, type Clock } from './clock'
+import { isRunning, startClock, stopClock, remaining, type Clock } from './clock'
 
 export const SHOT_FULL_MS = 24_000
 export const SHOT_SHORT_MS = 14_000
@@ -110,7 +110,12 @@ export function reduce(state: GameState, action: Action): GameState {
       return { ...settled, game: startClock(settled.game, action.at), shot }
     }
     case 'resetShot':
-      return { ...settled, shot: setClock(settled.shot, action.ms, action.at) }
+      // The shot clock follows the game clock: after a violation it sits stopped at 0 while the game clock may
+      // already be running again, and a reset must start it.
+      return {
+        ...settled,
+        shot: { remainingMs: action.ms, startedAt: isRunning(settled.game) ? action.at : null },
+      }
     case 'score': {
       const team = settled.teams[action.team]
       return {
@@ -140,7 +145,7 @@ export function reduce(state: GameState, action: Action): GameState {
       return { ...settled, game: { ...settled.game, remainingMs: ms } }
     }
     case 'adjustShot': {
-      if (isRunning(settled.shot)) return settled
+      if (isRunning(settled.game)) return settled
       const ms = Math.min(SHOT_FULL_MS, Math.max(0, settled.shot.remainingMs + action.deltaMs))
       return { ...settled, shot: { ...settled.shot, remainingMs: ms } }
     }

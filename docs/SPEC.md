@@ -46,7 +46,8 @@ export function stopClock(clock: Clock, now: number): Clock     // freezes remai
 export function setClock(clock: Clock, ms: number, now: number): Clock // keeps running/stopped state
 ```
 
-`remaining = startedAt === null ? remainingMs : max(0, remainingMs - (now - startedAt))`.
+`remaining = startedAt === null ? remainingMs : max(0, remainingMs - max(0, now - startedAt))` — a reading
+taken with a timestamp from before the start never shows more time than the clock had.
 `setClock` on a running clock restarts the count from `now`: `{ remainingMs: ms, startedAt: now }`.
 Clocks are timestamps, not counters: a window that reloads, or a board that renders late, still shows the
 exact time.
@@ -111,7 +112,7 @@ export type Command = WithoutAt<Action>
 | Action | Effect |
 |---|---|
 | `toggleRunning` | Running → stop both clocks. Stopped with the game clock at 0 → nothing. Otherwise start the game clock, and the shot clock too if its remaining is above 0. |
-| `resetShot` | Shot clock = `ms`. It keeps running if the game clock is running; otherwise it stays stopped. |
+| `resetShot` | Shot clock = `ms`, running if and only if the game clock is running (so a reset after a violation, with the shot clock stopped at 0 and play resumed, starts it). |
 | `score` | `score = max(0, score + points)`. |
 | `foul` | `fouls = max(0, fouls + delta)`. No upper limit. |
 | `adjustGame` | Only while stopped (ignored while running). Game clock clamped to `[0, periodLengthMs(period)]`. |
@@ -223,24 +224,30 @@ Read-only, built for a 16:9 screen seen from far away; everything scales with th
 - `document.title` = `"LBABoard — Tablero"`.
 - The board re-renders about 20 times per second while a clock runs (`useNow`), computing the displayed time
   from the state and its own clock; it never mutates the state.
-- `useNow(active: boolean, intervalMs = 50): number` returns `Date.now()` and, while `active`, re-renders every
-  `intervalMs` (cleared when inactive or unmounted).
+- `useNow(active: boolean, intervalMs = 50): number` returns the `Date.now()` of its last tick and, while
+  `active`, re-renders every `intervalMs` (cleared when inactive or unmounted). Reading `Date.now()` during render
+  would break React's purity rule; the lag of at most one interval is harmless because `remaining` clamps.
 
 ## 7. Control window (no hash)
 
-For a laptop screen (≥ 1280×720). `document.title` = `"LBABoard — Mesa de control"`.
+For a laptop screen (≥ 1280×720), laid out like the board: home panel | clock panel | away panel. Narrower
+windows put the clock panel on top with the teams below (one column on a phone). `document.title` =
+`"LBABoard — Mesa de control"`.
 
 - **Top bar:** `Abrir tablero` (opens or focuses `location.href` without hash + `#board` with
   `window.open(url, 'lbaboard-board', 'popup,width=1280,height=720')`), `Nuevo partido` (asks
   `window.confirm('¿Empezar un partido nuevo? Se borran el marcador, las faltas y el reloj.')`), a sound
   toggle (`Sonido: sí` / `Sonido: no`, remembered in localStorage key `lbaboard.muted`).
-- **Clock panel:** the game clock, shot clock and period as on the board (smaller); `Iniciar` / `Detener`
-  button; `24` and `14` buttons; `−1 s` / `+1 s` for the game clock and for the shot clock (disabled while
-  running); `Siguiente período` (disabled while running; when the game clock is above 0 it asks
-  `window.confirm('El reloj no llegó a 0. ¿Pasar al período siguiente?')`).
-- **Two team panels** (home left, away right): name input (max 12 characters), color input
-  (`<input type="color">`), score with `+1` `+2` `+3` `−1` buttons, team fouls with `+1` `−1` buttons.
-- **Settings:** minutes per quarter and per overtime (number inputs).
+- **Clock panel:** the period, game clock and shot clock as on the board (the shot clock is dimmed instead of
+  hidden when it is off); a large `Iniciar` / `Detener` button; `24` and `14` buttons, always enabled (resets
+  happen while the clock runs); `−1 s` / `+1 s` steppers labelled `Juego` and `Posesión` (accessible names
+  `Juego −1 s`, `Posesión +1 s`, …; disabled while running); `Siguiente período` (disabled while running; when
+  the game clock is above 0 it asks `window.confirm('El reloj no llegó a 0. ¿Pasar al período siguiente?')`).
+- **Two team panels** (home left, away right, top border in the team color): name input (max 12 characters;
+  it shows what is typed — spaces, an empty field — until it loses focus, while the game keeps the trimmed
+  name), color input (`<input type="color">`), score with `+1` `+2` `+3` `−1` buttons, team fouls with `+1` `−1`
+  buttons (fouls in the alert color from 4).
+- **Settings:** minutes per quarter (1–20) and per overtime (1–10) as `<select>`s.
 - **Shortcut legend** listing the table below.
 - State: `useReducer(reduce, …)` initialised from `loadGame() ?? initialGame()`; the UI sends `Command`s and a
   small `send(command)` stamps `at: Date.now()` before dispatching.
@@ -264,8 +271,8 @@ Matched on `KeyboardEvent.code`, so they work on any keyboard layout:
 
 - Ignored when the event target is an `input`, `textarea`, `select` or content-editable element, when Ctrl,
   Alt or Meta is held, and on auto-repeat (`event.repeat`).
-- `Space` calls `preventDefault()` on keydown **and keyup**, so a focused button is never also clicked (a
-  button activates on the keyup of Space) and the page does not scroll.
+- `Space` calls `preventDefault()` on keydown (auto-repeat included) **and keyup**, so a focused button is never
+  also clicked (a button activates on the keyup of Space) and the page does not scroll.
 - API:
 
 ```ts

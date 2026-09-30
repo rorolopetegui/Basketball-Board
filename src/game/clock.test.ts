@@ -15,6 +15,10 @@ describe('remaining', () => {
   it('returns remainingMs for a stopped clock', () => {
     expect(remaining({ remainingMs: 12_345, startedAt: null }, 99_999)).toBe(12_345)
   })
+
+  it('never exceeds remainingMs when read before the start time', () => {
+    expect(remaining({ remainingMs: 300_000, startedAt: 50_000 }, 10_000)).toBe(300_000)
+  })
 })
 
 describe('isRunning', () => {

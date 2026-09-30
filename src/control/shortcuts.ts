@@ -10,8 +10,8 @@ export interface Shortcut {
 
 export const SHORTCUTS: readonly Shortcut[] = [
   { code: 'Space', key: 'Espacio', label: 'Iniciar / detener', command: { type: 'toggleRunning' } },
-  { code: 'KeyZ', key: 'Z', label: 'Reloj de balón 24', command: { type: 'resetShot', ms: SHOT_FULL_MS } },
-  { code: 'KeyX', key: 'X', label: 'Reloj de balón 14', command: { type: 'resetShot', ms: SHOT_SHORT_MS } },
+  { code: 'KeyZ', key: 'Z', label: 'Posesión 24', command: { type: 'resetShot', ms: SHOT_FULL_MS } },
+  { code: 'KeyX', key: 'X', label: 'Posesión 14', command: { type: 'resetShot', ms: SHOT_SHORT_MS } },
   { code: 'KeyQ', key: 'Q', label: 'Local +1', command: { type: 'score', team: 'home', points: 1 } },
   { code: 'KeyW', key: 'W', label: 'Local +2', command: { type: 'score', team: 'home', points: 2 } },
   { code: 'KeyE', key: 'E', label: 'Local +3', command: { type: 'score', team: 'home', points: 3 } },
@@ -50,23 +50,21 @@ export function useShortcuts(onCommand: (command: Command) => void): void {
     onCommandRef.current = onCommand
   })
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const command = shortcutFor(event)
-      if (command === null) return
-      if (event.code === 'Space') event.preventDefault()
-      onCommandRef.current(command)
+    // Space is claimed on keydown (auto-repeat included, or holding it scrolls the page) and on keyup (where a
+    // focused button would otherwise activate), unless the user is typing.
+    const claimSpace = (event: KeyboardEvent) => {
+      if (event.code === 'Space' && !isTypingTarget(event.target) && !hasModifiers(event)) event.preventDefault()
     }
-    const onKeyUp = (event: KeyboardEvent) => {
-      if (event.code !== 'Space') return
-      if (isTypingTarget(event.target)) return
-      if (hasModifiers(event)) return
-      event.preventDefault()
+    const onKeyDown = (event: KeyboardEvent) => {
+      claimSpace(event)
+      const command = shortcutFor(event)
+      if (command !== null) onCommandRef.current(command)
     }
     window.addEventListener('keydown', onKeyDown)
-    window.addEventListener('keyup', onKeyUp)
+    window.addEventListener('keyup', claimSpace)
     return () => {
       window.removeEventListener('keydown', onKeyDown)
-      window.removeEventListener('keyup', onKeyUp)
+      window.removeEventListener('keyup', claimSpace)
     }
   }, [])
 }

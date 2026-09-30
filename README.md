@@ -22,6 +22,17 @@ y tiempos extra, y faltas de equipo (reglas FIBA).
 Si se cierra o recarga la ventana a mitad de partido, no se pierde nada: el marcador y los relojes siguen
 donde estaban.
 
+Detalles de reglas (FIBA): el reloj de posesión se apaga solo cuando queda menos tiempo de juego que de posesión;
+cuando la posesión llega a 0 se detienen los dos relojes y suena la chicharra (se puede silenciar con
+**Sonido**); las faltas de equipo se ponen en rojo desde la 4.ª (la siguiente da tiros libres) y se reinician
+en cada cuarto, salvo en el tiempo extra, que sigue contando las del 4.º cuarto.
+
+## Publicarlo en internet (opcional, gratis)
+
+- **GitHub Pages:** subí el repositorio a GitHub y activá *Settings → Pages → Source: GitHub Actions*. El
+  workflow `.github/workflows/pages.yml` prueba y publica cada cambio en `main`.
+- **Vercel:** importá el repositorio; detecta Vite solo (build `npm run build`, carpeta `dist`).
+
 ## Desarrollo
 
 Requiere Node 24 (`.nvmrc`).

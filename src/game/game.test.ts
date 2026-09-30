@@ -83,6 +83,12 @@ describe('resetShot', () => {
     const next = reduce(runningState(1_000), { type: 'resetShot', at: 5_000, ms: 24_000 })
     expect(next.shot).toEqual({ remainingMs: 24_000, startedAt: 5_000 })
   })
+
+  it('starts the shot clock when the game clock runs and the shot clock sat at 0 (after a violation)', () => {
+    const afterViolation = { ...runningState(1_000), shot: { remainingMs: 0, startedAt: null } }
+    const next = reduce(afterViolation, { type: 'resetShot', at: 5_000, ms: 24_000 })
+    expect(next.shot).toEqual({ remainingMs: 24_000, startedAt: 5_000 })
+  })
 })
 
 describe('score', () => {
@@ -136,6 +142,11 @@ describe('adjustShot', () => {
   it('is ignored while the shot clock is running', () => {
     const state = runningState(0)
     expect(reduce(state, { type: 'adjustShot', at: 1_000, deltaMs: -5_000 })).toBe(state)
+  })
+
+  it('is ignored while the game clock runs, even with the shot clock stopped at 0', () => {
+    const state = { ...runningState(0), shot: { remainingMs: 0, startedAt: null } }
+    expect(reduce(state, { type: 'adjustShot', at: 1_000, deltaMs: 5_000 })).toBe(state)
   })
 
   it('adjusts the stopped shot clock clamped to [0, 24000]', () => {

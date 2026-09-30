@@ -5,7 +5,9 @@ export interface Clock {
 
 export function remaining(clock: Clock, now: number): number {
   if (clock.startedAt === null) return clock.remainingMs
-  return Math.max(0, clock.remainingMs - (now - clock.startedAt))
+  // A reading taken before the start (a stale timestamp) must not show more time than the clock had.
+  const elapsed = Math.max(0, now - clock.startedAt)
+  return Math.max(0, clock.remainingMs - elapsed)
 }
 
 export function isRunning(clock: Clock): boolean {

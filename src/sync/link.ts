@@ -86,6 +86,8 @@ export function useControlLink(state: GameState): { openBoard: () => void } {
       if (isMessage(event.data) && event.data.kind === 'hello') {
         const source = event.source as Window | null
         if (source !== null && typeof source.postMessage === 'function') {
+          // A board that says hello is the one to update, e.g. after this window was reloaded and lost its ref.
+          boardRef.current = source
           const message: LinkMessage = { app: 'lbaboard', kind: 'state', state: stateRef.current }
           source.postMessage(message, '*')
         }

@@ -210,6 +210,20 @@ describe('useControlLink', () => {
     expect(post).toHaveBeenCalledWith({ app: 'lbaboard', kind: 'state', state }, '*')
   })
 
+  it('keeps updating a board that said hello (e.g. after the control window reloaded)', () => {
+    setOpener(null)
+    const board = fakeWindow()
+    const post = vi.spyOn(board, 'postMessage')
+    const stateA = initialGame()
+    const { rerender } = renderHook((s: GameState) => useControlLink(s), { initialProps: stateA })
+    act(() => {
+      deliver({ app: 'lbaboard', kind: 'hello' }, board)
+    })
+    const stateB = { ...stateA, period: 2 }
+    rerender(stateB)
+    expect(post).toHaveBeenLastCalledWith({ app: 'lbaboard', kind: 'state', state: stateB }, '*')
+  })
+
   it('openBoard opens the board URL the first time', () => {
     setOpener(null)
     const board = fakeWindow()

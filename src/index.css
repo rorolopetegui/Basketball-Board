@@ -6,8 +6,13 @@
   --text: #f2f4f8;
   --muted: #9aa3b2;
   --digit: #ffb020;
+  --shot: #ff6a3d;
   --alert: #ff4d4f;
   --accent: #3d8bfd;
+  --btn: #1d2330;
+  --btn-hover: #262e3d;
+  --go: #1f9d55;
+  --stop: #d64545;
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   background: var(--bg);
   color: var(--text);
@@ -24,10 +29,4 @@ body,
 #root {
   height: 100%;
   margin: 0;
-}
-
-.placeholder {
-  display: grid;
-  place-items: center;
-  height: 100%;
 }

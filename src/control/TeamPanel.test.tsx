@@ -31,6 +31,23 @@ describe('TeamPanel', () => {
     expect(onCommand).toHaveBeenCalledWith({ type: 'setTeam', team: 'home', name: 'PUMAS' })
   })
 
+  it('keeps what is typed (spaces, an empty field) until the field loses focus', () => {
+    const { onCommand } = setup()
+    const input = screen.getByLabelText('Nombre LOCAL') as HTMLInputElement
+    fireEvent.change(input, { target: { value: 'LOS ' } })
+    expect(input.value).toBe('LOS ')
+    expect(onCommand).toHaveBeenLastCalledWith({ type: 'setTeam', team: 'home', name: 'LOS ' })
+    fireEvent.change(input, { target: { value: '' } })
+    expect(input.value).toBe('')
+    fireEvent.blur(input)
+    expect(input.value).toBe('LOCAL')
+  })
+
+  it('marks the team fouls from 4 on', () => {
+    setup('home', { ...LOCAL, fouls: 4 })
+    expect(screen.getByText('4')).toHaveClass('alert')
+  })
+
   it('sends setTeam when the color changes', () => {
     const { onCommand } = setup()
     fireEvent.change(screen.getByLabelText('Color LOCAL'), { target: { value: '#00ff00' } })
