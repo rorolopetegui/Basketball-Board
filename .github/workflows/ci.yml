@@ -32,6 +32,12 @@ jobs:
       - run: npm test
       - run: npm run lint
       - run: npm run build
+      - name: LBABoard.html matches the source
+        run: |
+          if ! cmp -s dist/index.html LBABoard.html; then
+            echo "::error file=LBABoard.html::LBABoard.html is out of date: run 'npm run release' and commit it."
+            exit 1
+          fi
       - name: Is GitHub Pages enabled?
         id: pages
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'

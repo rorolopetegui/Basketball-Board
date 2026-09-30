@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "release": "npm run build && node -e \"require('fs').copyFileSync('dist/index.html', 'LBABoard.html')\"",
     "typecheck": "tsc -b",
     "lint": "oxlint",
     "test": "vitest run",

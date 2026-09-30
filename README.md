@@ -4,12 +4,27 @@ Tablero de básquet gratuito: una ventana de **mesa de control** para quien llev
 **tablero** para mostrar en la TV o el proyector. Marcador, reloj de juego, reloj de posesión (24/14), cuartos
 y tiempos extra, y faltas de equipo (reglas FIBA).
 
+No hay que instalar nada ni saber programar: es un solo archivo que se abre con el navegador y funciona sin
+internet.
+
+## Descargarlo
+
+1. En esta página, tocá el botón verde **Code** y después **Download ZIP**.
+2. Descomprimí el ZIP (clic derecho → *Extraer todo…*).
+3. Adentro de la carpeta, abrí **`LBABoard.html`** con doble clic. Se abre en tu navegador (Chrome, Edge o
+   Firefox).
+
+¿Solo querés el archivo? Abrí [`LBABoard.html`](LBABoard.html) acá en GitHub y tocá el botón de descarga
+(la flecha hacia abajo, *Download raw file*). Podés copiarlo a un pendrive o pasarlo por WhatsApp: con ese
+archivo alcanza.
+
 ## Usarlo
 
-1. Abrí `LBABoard.html` con doble clic (Chrome, Edge o Firefox). No necesita internet ni instalar nada.
-2. Se abre la mesa de control. Tocá **Abrir tablero**: aparece la ventana del tablero.
-3. Arrastrá el tablero a la TV (pantalla extendida) y hacé doble clic sobre él para verlo en pantalla completa.
-4. Manejá el partido desde la mesa de control, con los botones o con el teclado:
+1. Con `LBABoard.html` abierto ves la **mesa de control**. Tocá **Abrir tablero**: aparece una segunda ventana
+   con el tablero. (Si el navegador avisa que bloqueó una ventana emergente, tocá *Permitir*.)
+2. Arrastrá la ventana del tablero a la TV o al proyector (pantalla extendida) y hacé doble clic sobre ella
+   para verla en pantalla completa.
+3. Manejá el partido desde la mesa de control, con los botones o con el teclado:
 
 | Tecla | Acción | Tecla | Acción |
 |---|---|---|---|
@@ -19,30 +34,33 @@ y tiempos extra, y faltas de equipo (reglas FIBA).
 | `A` | local −1 punto | `J` | visita −1 punto |
 | `S` / `D` | falta local +1 / −1 | `K` / `L` | falta visita +1 / −1 |
 
-Si se cierra o recarga la ventana a mitad de partido, no se pierde nada: el marcador y los relojes siguen
-donde estaban.
+Para terminar, cerrá las dos ventanas: no queda nada abierto ni corriendo. Si se cierra o recarga una ventana
+a mitad de partido, no se pierde nada: el marcador y los relojes siguen donde estaban. **Nuevo partido** lo
+pone todo en cero (mantiene los nombres y colores de los equipos).
 
-Detalles de reglas (FIBA): el reloj de posesión se apaga solo cuando queda menos tiempo de juego que de posesión;
-cuando la posesión llega a 0 suena la chicharra (se puede silenciar con **Sonido**) y se detiene solo la
-posesión: el reloj del partido sigue corriendo hasta que lo detengas (reloj corrido). **Detener** para los dos
-relojes; **Pausar posesión** (o `C`) para solo el de posesión. Las faltas de equipo se ponen en rojo desde la 4.ª (la siguiente da tiros libres) y se reinician
-en cada cuarto, salvo en el tiempo extra, que sigue contando las del 4.º cuarto.
+### Reglas (FIBA)
 
-## Publicarlo en internet (opcional, gratis)
+- **Reloj corrido:** cuando la posesión llega a 0 suena la chicharra y se detiene solo la posesión; el reloj del
+  partido sigue corriendo hasta que lo detengas. **Detener** para los dos relojes; **Pausar posesión** (o `C`)
+  para solo el de posesión.
+- El reloj de posesión se apaga cuando queda menos tiempo de partido que de posesión.
+- En el último minuto el reloj del partido muestra décimas.
+- Las faltas de equipo se ponen en rojo desde la 4.ª (la siguiente da tiros libres) y vuelven a 0 en cada
+  cuarto; en el tiempo extra siguen contando las del 4.º cuarto.
+- La chicharra se puede silenciar con **Sonido**. Los minutos por cuarto y por tiempo extra se eligen abajo en
+  la mesa de control.
 
-- **GitHub Pages:** en el repositorio activá *Settings → Pages → Source: GitHub Actions*. El workflow
-  `.github/workflows/ci.yml` prueba cada cambio en `main` y, con Pages activado, lo publica.
-- **Vercel:** importá el repositorio; detecta Vite solo (build `npm run build`, carpeta `dist`).
+## Para programadores
 
-## Desarrollo
-
-Requiere Node 24 (`.nvmrc`).
+Hecho con React + TypeScript + Vite; el build es un único HTML con todo adentro. Requiere Node 24 (`.nvmrc`).
 
 ```bash
 npm ci
 npm run dev        # servidor de desarrollo
 npm test           # tests
-npm run build      # genera dist/index.html (un solo archivo con todo adentro)
+npm run release    # genera el build y actualiza LBABoard.html (hay que commitearlo)
 ```
 
-La especificación completa está en [`docs/SPEC.md`](docs/SPEC.md).
+El CI (`.github/workflows/ci.yml`) corre tests, lint y build en cada cambio en `main`, y falla si `LBABoard.html`
+no coincide con el código. Si en *Settings → Pages* se elige *Source: GitHub Actions*, además lo publica en
+GitHub Pages. La especificación completa está en [`docs/SPEC.md`](docs/SPEC.md).
