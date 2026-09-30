@@ -12,7 +12,7 @@ function runningGame(): GameState {
     period: 3,
     game: { remainingMs: 599_000, startedAt: 1_000 },
     shot: { remainingMs: 13_950, startedAt: 1_200 },
-    settings: { periodMinutes: 12, overtimeMinutes: 5 },
+    settings: { periodMinutes: 12, overtimeMinutes: 5, clockRate: 1.03 },
   }
 }
 
@@ -89,6 +89,22 @@ describe('parseGame', () => {
     expect(parseGame({ ...base, game: { ...base.game, startedAt: undefined } })).toBeNull()
     expect(parseGame({ ...base, game: { ...base.game, startedAt: null } })).not.toBeNull()
     expect(parseGame({ ...base, shot: { remainingMs: 0, startedAt: null } })).not.toBeNull()
+  })
+
+  it('reads a game saved before the clock speed existed as real time', () => {
+    const saved = { ...runningGame(), settings: { periodMinutes: 12, overtimeMinutes: 5 } }
+    expect(parseGame(saved)?.settings).toEqual({ periodMinutes: 12, overtimeMinutes: 5, clockRate: 1 })
+  })
+
+  it('validates the clock speed', () => {
+    const base = runningGame()
+    const withRate = (clockRate: unknown) => parseGame({ ...base, settings: { ...base.settings, clockRate } })
+    expect(withRate(0.8)).not.toBeNull()
+    expect(withRate(1.2)).not.toBeNull()
+    expect(withRate(0.79)).toBeNull()
+    expect(withRate(1.21)).toBeNull()
+    expect(withRate(Number.NaN)).toBeNull()
+    expect(withRate('1')).toBeNull()
   })
 
   it('validates settings ranges', () => {

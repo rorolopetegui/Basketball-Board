@@ -43,6 +43,17 @@ Para terminar, cerrá las dos ventanas: no queda nada abierto ni corriendo. Si s
 a mitad de partido, no se pierde nada: el marcador y los relojes siguen donde estaban. **Nuevo partido** lo
 pone todo en cero (mantiene los nombres y colores de los equipos).
 
+### Sincronizarlo con el reloj de la cancha
+
+Para transmitir un partido cuyo reloj oficial está en la cancha:
+
+- **Corregir el tiempo:** tocá el lápiz **✎** al lado del reloj del partido (o del de posesión), escribí el tiempo
+  (`4:30`, `45` o `12.5`) y tocá **OK** o Enter. Funciona también con el reloj corriendo: sigue desde el valor
+  nuevo.
+- **Velocidad de los relojes** (abajo en la mesa de control): si el reloj de la cancha adelanta, subila con
+  **+**; si atrasa, bajala con **−** (de a 0,5 %). Por ejemplo, si en un minuto la cancha marca 3 segundos de más,
+  poné 105 %. **Normal** la vuelve a 100 %. El tablero usa la misma velocidad.
+
 ### Reglas (FIBA)
 
 - **Reloj corrido:** cuando la posesión llega a 0 suena la chicharra y se detiene solo la posesión; el reloj del

@@ -1,5 +1,5 @@
 import type { Clock } from './clock'
-import type { GameState, Settings, Team } from './game'
+import { MAX_CLOCK_RATE, MIN_CLOCK_RATE, type GameState, type Settings, type Team } from './game'
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -27,10 +27,12 @@ function parseTeam(value: unknown): Team | null {
 
 function parseSettings(value: unknown): Settings | null {
   if (!isPlainObject(value)) return null
-  const { periodMinutes, overtimeMinutes } = value
+  const { periodMinutes, overtimeMinutes, clockRate = 1 } = value
   if (!isFiniteNumber(periodMinutes) || periodMinutes < 1 || periodMinutes > 20) return null
   if (!isFiniteNumber(overtimeMinutes) || overtimeMinutes < 1 || overtimeMinutes > 10) return null
-  return { periodMinutes, overtimeMinutes }
+  // Games saved before the clock speed existed have no clockRate: they run at real time.
+  if (!isFiniteNumber(clockRate) || clockRate < MIN_CLOCK_RATE || clockRate > MAX_CLOCK_RATE) return null
+  return { periodMinutes, overtimeMinutes, clockRate }
 }
 
 export function parseGame(value: unknown): GameState | null {

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useBoardState } from '../sync/link'
 import { useNow } from '../useNow'
-import { isRunning, remaining } from '../game/clock'
+import { isRunning } from '../game/clock'
 import { formatGameClock, formatShotClock, periodLabel } from '../game/format'
-import { shotClockVisible, type Team } from '../game/game'
+import { gameRemaining, shotClockVisible, shotRemaining, type Team } from '../game/game'
 import './Board.css'
 
 const PENALTY_FOULS = 4
@@ -31,8 +31,8 @@ function TeamColumn({ team, side }: { team: Team; side: 'home' | 'away' }) {
 export function Board() {
   const state = useBoardState()
   const now = useNow(isRunning(state.game) || isRunning(state.shot))
-  const gameMs = remaining(state.game, now)
-  const shotMs = remaining(state.shot, now)
+  const gameMs = gameRemaining(state, now)
+  const shotMs = shotRemaining(state, now)
   const [showHint, setShowHint] = useState(true)
 
   useEffect(() => {

@@ -121,6 +121,22 @@ describe('Board', () => {
     expect(screen.getByText('9:55')).toBeInTheDocument()
   })
 
+  it('runs its clocks at the clock speed chosen in the control window', () => {
+    const T = 100_000
+    const state = makeState({
+      game: { remainingMs: 600_000, startedAt: T },
+      shot: { remainingMs: 24_000, startedAt: T },
+      settings: { periodMinutes: 10, overtimeMinutes: 5, clockRate: 1.2 },
+    })
+    mockUseBoardState.mockReturnValue(state)
+    render(<Board />)
+    act(() => {
+      vi.advanceTimersByTime(5000)
+    })
+    expect(screen.getByText('9:54')).toBeInTheDocument()
+    expect(document.querySelector('.shot-clock')).toHaveTextContent('18')
+  })
+
   it('toggles fullscreen on double click and fades the hint after 4 s', () => {
     const requestSpy = vi.fn()
     const exitSpy = vi.fn()

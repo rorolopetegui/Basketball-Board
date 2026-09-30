@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { remaining } from './clock'
-import { initialGame, periodLengthMs, reduce, settle, shotClockVisible, type Action, type GameState } from './game'
+import {
+  gameRemaining,
+  initialGame,
+  periodLengthMs,
+  reduce,
+  settle,
+  shotClockVisible,
+  shotRemaining,
+  type Action,
+  type GameState,
+} from './game'
 
 function runningState(at: number, gameMs = 600_000, shotMs = 24_000): GameState {
   return {
@@ -21,7 +31,7 @@ describe('initialGame', () => {
       period: 1,
       game: { remainingMs: 600_000, startedAt: null },
       shot: { remainingMs: 24_000, startedAt: null },
-      settings: { periodMinutes: 10, overtimeMinutes: 5 },
+      settings: { periodMinutes: 10, overtimeMinutes: 5, clockRate: 1 },
     })
   })
 
@@ -30,7 +40,7 @@ describe('initialGame', () => {
       { periodMinutes: 12, overtimeMinutes: 2 },
       { home: { name: 'OSASUNA', color: '#a00' } },
     )
-    expect(state.settings).toEqual({ periodMinutes: 12, overtimeMinutes: 2 })
+    expect(state.settings).toEqual({ periodMinutes: 12, overtimeMinutes: 2, clockRate: 1 })
     expect(state.game.remainingMs).toBe(12 * 60_000)
     expect(state.teams.home).toEqual({ name: 'OSASUNA', color: '#a00', score: 0, fouls: 0 })
     expect(state.teams.away.name).toBe('VISITA')
@@ -186,6 +196,34 @@ describe('adjustShot', () => {
   })
 })
 
+describe('setGame', () => {
+  it('sets a stopped game clock to the typed time, clamped to the period length', () => {
+    expect(reduce(initialGame(), { type: 'setGame', at: 0, ms: 270_000 }).game).toEqual({ remainingMs: 270_000, startedAt: null })
+    expect(reduce(initialGame(), { type: 'setGame', at: 0, ms: 900_000 }).game.remainingMs).toBe(600_000)
+    expect(reduce(initialGame(), { type: 'setGame', at: 0, ms: -5 }).game.remainingMs).toBe(0)
+  })
+
+  it('keeps a running game clock running from the typed time (to match the court clock)', () => {
+    const next = reduce(runningState(0), { type: 'setGame', at: 7_000, ms: 270_000 })
+    expect(next.game).toEqual({ remainingMs: 270_000, startedAt: 7_000 })
+    expect(next.shot).toEqual({ remainingMs: 24_000, startedAt: 0 })
+  })
+
+  it('ignores a value that is not a number', () => {
+    const state = initialGame()
+    expect(reduce(state, { type: 'setGame', at: 0, ms: Number.NaN })).toBe(state)
+  })
+})
+
+describe('setShot', () => {
+  it('sets the shot clock, clamped to 24 s, running if and only if the game clock runs', () => {
+    expect(reduce(initialGame(), { type: 'setShot', at: 0, ms: 10_000 }).shot).toEqual({ remainingMs: 10_000, startedAt: null })
+    expect(reduce(initialGame(), { type: 'setShot', at: 0, ms: 30_000 }).shot.remainingMs).toBe(24_000)
+    const paused = { ...runningState(0), shot: { remainingMs: 0, startedAt: null } }
+    expect(reduce(paused, { type: 'setShot', at: 3_000, ms: 12_500 }).shot).toEqual({ remainingMs: 12_500, startedAt: 3_000 })
+  })
+})
+
 describe('nextPeriod', () => {
   it('is ignored while the game clock is running', () => {
     const state = runningState(0)
@@ -257,14 +295,32 @@ describe('setSettings', () => {
       periodMinutes: Number.NaN,
       overtimeMinutes: Infinity,
     })
-    expect(next.settings).toEqual({ periodMinutes: 10, overtimeMinutes: 5 })
+    expect(next.settings).toEqual({ periodMinutes: 10, overtimeMinutes: 5, clockRate: 1 })
   })
 
   it('rounds and clamps minutes', () => {
     const next = reduce(initialGame(), { type: 'setSettings', at: 0, periodMinutes: 25, overtimeMinutes: 0.4 })
-    expect(next.settings).toEqual({ periodMinutes: 20, overtimeMinutes: 1 })
+    expect(next.settings).toEqual({ periodMinutes: 20, overtimeMinutes: 1, clockRate: 1 })
     const low = reduce(initialGame(), { type: 'setSettings', at: 0, periodMinutes: -3, overtimeMinutes: 15 })
-    expect(low.settings).toEqual({ periodMinutes: 1, overtimeMinutes: 10 })
+    expect(low.settings).toEqual({ periodMinutes: 1, overtimeMinutes: 10, clockRate: 1 })
+  })
+
+  it('clamps the clock speed to 80–120 % and snaps it to 0.5 % steps', () => {
+    const speed = (clockRate: number) => reduce(initialGame(), { type: 'setSettings', at: 0, clockRate }).settings.clockRate
+    expect(speed(1 + 0.005 * 3)).toBe(1.015)
+    expect(speed(1.0123)).toBe(1.01)
+    expect(speed(2)).toBe(1.2)
+    expect(speed(0.1)).toBe(0.8)
+    expect(speed(Number.NaN)).toBe(1)
+  })
+
+  it('changes the speed of running clocks from now on, keeping the time already run', () => {
+    const running = runningState(0)
+    const faster = reduce(running, { type: 'setSettings', at: 10_000, clockRate: 1.1 })
+    expect(faster.game).toEqual({ remainingMs: 590_000, startedAt: 10_000 })
+    expect(faster.shot).toEqual({ remainingMs: 14_000, startedAt: 10_000 })
+    expect(gameRemaining(faster, 20_000)).toBe(579_000)
+    expect(shotRemaining(faster, 20_000)).toBe(3_000)
   })
 
   it('resets an untouched stopped game clock to the new period length', () => {
@@ -312,6 +368,14 @@ describe('settle', () => {
     expect(next.shot).toEqual({ remainingMs: 0, startedAt: null })
     expect(next.game).toBe(state.game)
     expect(remaining(next.game, 30_000)).toBe(570_000)
+  })
+
+  it('finds each expiry at the configured clock speed', () => {
+    const fast = { ...runningState(0, 600_000, 24_000), settings: { ...initialGame().settings, clockRate: 1.2 } }
+    expect(settle(fast, 19_999)).toBe(fast)
+    const expired = settle(fast, 20_000)
+    expect(expired.shot).toEqual({ remainingMs: 0, startedAt: null })
+    expect(gameRemaining(expired, 20_000)).toBe(576_000)
   })
 
   it('stops the game clock later at its own expiry after the shot clock ran out', () => {
@@ -383,6 +447,8 @@ describe('Action exhaustiveness', () => {
       { type: 'foul', at: 0, team: 'away', delta: 1 },
       { type: 'adjustGame', at: 0, deltaMs: 1_000 },
       { type: 'adjustShot', at: 0, deltaMs: -1_000 },
+      { type: 'setGame', at: 0, ms: 270_000 },
+      { type: 'setShot', at: 0, ms: 10_000 },
       { type: 'nextPeriod', at: 0 },
       { type: 'setTeam', at: 0, team: 'home', name: 'X', color: '#123456' },
       { type: 'setSettings', at: 0, periodMinutes: 10, overtimeMinutes: 5 },

@@ -157,6 +157,79 @@ describe('Control', () => {
     expect(window.localStorage.getItem('lbaboard.muted')).toBe('false')
   })
 
+  it('sets the game clock to a typed time with the pencil, also while it runs', () => {
+    renderWith()
+    fireEvent.click(button('Editar tiempo de juego'))
+    const input = screen.getByLabelText('Valor de tiempo de juego')
+    expect(input).toHaveValue('10:00')
+    fireEvent.change(input, { target: { value: '4:30' } })
+    fireEvent.submit(input)
+    expect(screen.getByText('4:30')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Valor de tiempo de juego')).not.toBeInTheDocument()
+
+    fireEvent.click(button('Iniciar'))
+    advance(2_000)
+    fireEvent.click(button('Editar tiempo de juego'))
+    fireEvent.change(screen.getByLabelText('Valor de tiempo de juego'), { target: { value: '3:00' } })
+    fireEvent.click(button('OK'))
+    advance(1_000)
+    expect(screen.getByText('2:59')).toBeInTheDocument()
+    expect(button('Detener')).toBeInTheDocument()
+  })
+
+  it('explains the format of a time it cannot read, and Escape cancels', () => {
+    renderWith()
+    fireEvent.click(button('Editar tiempo de juego'))
+    const input = screen.getByLabelText('Valor de tiempo de juego')
+    fireEvent.change(input, { target: { value: '4:75' } })
+    fireEvent.submit(input)
+    expect(screen.getByRole('alert')).toHaveTextContent('4:30, 45 o 12.5')
+    expect(screen.getByText('10:00')).toBeInTheDocument()
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(screen.queryByLabelText('Valor de tiempo de juego')).not.toBeInTheDocument()
+    expect(button('Editar tiempo de juego')).toBeInTheDocument()
+  })
+
+  it('does not treat typing in the editor as shortcuts', () => {
+    renderWith()
+    fireEvent.click(button('Editar tiempo de juego'))
+    const input = screen.getByLabelText('Valor de tiempo de juego')
+    fireEvent.keyDown(input, { code: 'Space' })
+    fireEvent.keyDown(input, { code: 'KeyQ' })
+    expect(button('Iniciar')).toBeInTheDocument()
+    expect(loadGame()?.teams.home.score).toBe(0)
+  })
+
+  it('sets the shot clock to a typed time with its pencil', () => {
+    renderWith()
+    fireEvent.click(button('Editar posesión'))
+    const input = screen.getByLabelText('Valor de posesión')
+    expect(input).toHaveValue('24')
+    fireEvent.change(input, { target: { value: '12,5' } })
+    fireEvent.submit(input)
+    expect(screen.getByTestId('shot-clock')).toHaveTextContent('12')
+    expect(loadGame()?.shot.remainingMs).toBe(12_500)
+  })
+
+  it('changes the clock speed in 0.5 % steps, and the clocks follow it', () => {
+    renderWith()
+    const speed = screen.getByRole('group', { name: 'Velocidad de los relojes' })
+    expect(speed).toHaveTextContent('100,0 %')
+    expect(button('Normal')).toBeDisabled()
+    fireEvent.click(button('Velocidad +0,5 %'))
+    expect(speed).toHaveTextContent('100,5 %')
+    for (let i = 0; i < 19; i++) fireEvent.click(button('Velocidad +0,5 %'))
+    expect(speed).toHaveTextContent('110,0 %')
+    fireEvent.click(button('Iniciar'))
+    advance(10_000)
+    expect(screen.getByText('9:49')).toBeInTheDocument()
+    expect(screen.getByTestId('shot-clock')).toHaveTextContent('13')
+    fireEvent.click(button('Normal'))
+    expect(speed).toHaveTextContent('100,0 %')
+    advance(10_000)
+    expect(screen.getByText('9:39')).toBeInTheDocument()
+  })
+
   it('asks before moving to the next period while time remains', () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
     renderWith()
@@ -196,7 +269,7 @@ describe('Control', () => {
     fireEvent.change(screen.getByLabelText('Minutos por cuarto'), { target: { value: '12' } })
     expect(screen.getByText('12:00')).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Minutos por tiempo extra'), { target: { value: '3' } })
-    expect(loadGame()?.settings).toEqual({ periodMinutes: 12, overtimeMinutes: 3 })
+    expect(loadGame()?.settings).toEqual({ periodMinutes: 12, overtimeMinutes: 3, clockRate: 1 })
   })
 
   it('scores, fouls and names teams from the team panels and the keyboard', () => {

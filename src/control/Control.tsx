@@ -1,18 +1,24 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
-import { isRunning, remaining, type Clock } from '../game/clock'
-import { formatGameClock, formatShotClock, periodLabel } from '../game/format'
+import { isRunning, type Clock } from '../game/clock'
+import { formatClockRate, formatGameClock, formatShotClock, periodLabel } from '../game/format'
 import {
+  CLOCK_RATE_STEP,
+  gameRemaining,
   initialGame,
+  MAX_CLOCK_RATE,
+  MIN_CLOCK_RATE,
   reduce,
   SHOT_FULL_MS,
   SHOT_SHORT_MS,
   shotClockVisible,
+  shotRemaining,
   type Command,
   type GameState,
 } from '../game/game'
 import { playBuzzer } from '../audio/buzzer'
 import { loadGame, useControlLink } from '../sync/link'
 import { useNow } from '../useNow'
+import { ClockEditor } from './ClockEditor'
 import { SHORTCUTS, useShortcuts } from './shortcuts'
 import { TeamPanel } from './TeamPanel'
 import './Control.css'
@@ -78,8 +84,9 @@ export function Control() {
   const running = isRunning(state.game)
   const shotRunning = isRunning(state.shot)
   const now = useNow(running)
-  const gameMs = remaining(state.game, now)
-  const shotMs = remaining(state.shot, now)
+  const gameMs = gameRemaining(state, now)
+  const shotMs = shotRemaining(state, now)
+  const rate = state.settings.clockRate
 
   const send = useCallback((command: Command) => dispatch({ ...command, at: Date.now() }), [])
   useShortcuts(send)
@@ -136,7 +143,14 @@ export function Control() {
 
         <section className="clock-panel" aria-label="Relojes">
           <div className="clock-panel__period">{periodLabel(state.period)}</div>
-          <div className={`clock-panel__game${gameMs <= 0 ? ' alert' : ''}`}>{formatGameClock(gameMs)}</div>
+          <div className="clock-panel__game-row">
+            <div className={`clock-panel__game${gameMs <= 0 ? ' alert' : ''}`}>{formatGameClock(gameMs)}</div>
+            <ClockEditor
+              name="tiempo de juego"
+              current={formatGameClock(gameMs)}
+              onSet={(ms) => send({ type: 'setGame', ms })}
+            />
+          </div>
           <button
             type="button"
             className={`btn btn--start${running ? ' btn--stop' : ''}`}
@@ -158,6 +172,7 @@ export function Control() {
             <button type="button" className="btn btn--shot" onClick={() => send({ type: 'resetShot', ms: SHOT_SHORT_MS })}>
               14
             </button>
+            <ClockEditor name="posesión" current={formatShotClock(shotMs)} onSet={(ms) => send({ type: 'setShot', ms })} />
           </div>
           <button
             type="button"
@@ -199,6 +214,41 @@ export function Control() {
               {minuteOptions(MAX_OVERTIME_MINUTES)}
             </select>
           </label>
+          <div
+            className="speed"
+            role="group"
+            aria-label="Velocidad de los relojes"
+            title="Si el reloj de la cancha adelanta, subila; si atrasa, bajala."
+          >
+            Velocidad de los relojes
+            <button
+              type="button"
+              className="btn btn--small"
+              aria-label="Velocidad −0,5 %"
+              disabled={rate <= MIN_CLOCK_RATE}
+              onClick={() => send({ type: 'setSettings', clockRate: rate - CLOCK_RATE_STEP })}
+            >
+              −
+            </button>
+            <output className={rate === 1 ? '' : 'speed--custom'}>{formatClockRate(rate)}</output>
+            <button
+              type="button"
+              className="btn btn--small"
+              aria-label="Velocidad +0,5 %"
+              disabled={rate >= MAX_CLOCK_RATE}
+              onClick={() => send({ type: 'setSettings', clockRate: rate + CLOCK_RATE_STEP })}
+            >
+              +
+            </button>
+            <button
+              type="button"
+              className="btn btn--small"
+              disabled={rate === 1}
+              onClick={() => send({ type: 'setSettings', clockRate: 1 })}
+            >
+              Normal
+            </button>
+          </div>
         </div>
         <ul className="legend" aria-label="Atajos de teclado">
           {SHORTCUTS.map((shortcut) => (

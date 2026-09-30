@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isRunning, remaining, setClock, startClock, stopClock } from './clock'
+import { expiresAt, isRunning, remaining, setClock, startClock, stopClock } from './clock'
 
 describe('remaining', () => {
   it('subtracts elapsed time from a running clock', () => {
@@ -18,6 +18,21 @@ describe('remaining', () => {
 
   it('never exceeds remainingMs when read before the start time', () => {
     expect(remaining({ remainingMs: 300_000, startedAt: 50_000 }, 10_000)).toBe(300_000)
+  })
+
+  it('runs faster or slower with a clock rate', () => {
+    const clock = { remainingMs: 60_000, startedAt: 0 }
+    expect(remaining(clock, 10_000, 1.1)).toBe(49_000)
+    expect(remaining(clock, 10_000, 0.9)).toBe(51_000)
+    expect(stopClock(clock, 10_000, 1.1)).toEqual({ remainingMs: 49_000, startedAt: null })
+  })
+})
+
+describe('expiresAt', () => {
+  it('is when a running clock reaches 0 at its rate, and null for a stopped clock', () => {
+    expect(expiresAt({ remainingMs: 24_000, startedAt: 1_000 })).toBe(25_000)
+    expect(expiresAt({ remainingMs: 24_000, startedAt: 1_000 }, 1.2)).toBe(21_000)
+    expect(expiresAt({ remainingMs: 24_000, startedAt: null })).toBeNull()
   })
 })
 

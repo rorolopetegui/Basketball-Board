@@ -49,6 +49,10 @@ export function setClock(clock: Clock, ms: number, now: number): Clock // keeps 
 `remaining = startedAt === null ? remainingMs : max(0, remainingMs - max(0, now - startedAt))` — a reading
 taken with a timestamp from before the start never shows more time than the clock had.
 `setClock` on a running clock restarts the count from `now`: `{ remainingMs: ms, startedAt: now }`.
+
+**Clock speed.** `remaining(clock, now, rate = 1)` and `stopClock(clock, now, rate = 1)` take a rate: clock
+milliseconds per real millisecond (1.03 = a clock 3 % fast), so the board can match a court clock that is not
+exact. `expiresAt(clock, rate)` is the real time a running clock reaches 0 (`startedAt + remainingMs / rate`).
 Clocks are timestamps, not counters: a window that reloads, or a board that renders late, still shows the
 exact time.
 
@@ -57,7 +61,7 @@ exact time.
 ```ts
 export type TeamId = 'home' | 'away'
 export interface Team { name: string; color: string; score: number; fouls: number }
-export interface Settings { periodMinutes: number; overtimeMinutes: number }
+export interface Settings { periodMinutes: number; overtimeMinutes: number; clockRate: number }
 export interface GameState {
   version: 1
   teams: Record<TeamId, Team>
@@ -76,10 +80,14 @@ export function initialGame(
 ```
 
 Defaults: home `{ name: 'LOCAL', color: '#1f6feb' }`, away `{ name: 'VISITA', color: '#d73a49' }`,
-`periodMinutes: 10`, `overtimeMinutes: 5`, period 1, game clock = period length stopped, shot clock 24 s
-stopped, scores and fouls 0.
+`periodMinutes: 10`, `overtimeMinutes: 5`, `clockRate: 1`, period 1, game clock = period length stopped, shot
+clock 24 s stopped, scores and fouls 0.
 
 `periodLengthMs(state, period)` = `periodMinutes` for periods 1–4, `overtimeMinutes` for 5+.
+
+`clockRate` is the speed of both clocks (`MIN_CLOCK_RATE` 0.8 to `MAX_CLOCK_RATE` 1.2, in `CLOCK_RATE_STEP`s of
+0.005). Everything that reads a clock goes through `gameRemaining(state, now)` / `shotRemaining(state, now)`, which
+apply it — the board included, so both windows run at the same speed.
 
 ### 2.3 Actions
 
@@ -94,9 +102,11 @@ export type Action =
   | { type: 'foul'; team: TeamId; delta: 1 | -1; at: number }
   | { type: 'adjustGame'; deltaMs: number; at: number }
   | { type: 'adjustShot'; deltaMs: number; at: number }
+  | { type: 'setGame'; ms: number; at: number }
+  | { type: 'setShot'; ms: number; at: number }
   | { type: 'nextPeriod'; at: number }
   | { type: 'setTeam'; team: TeamId; name?: string; color?: string; at: number }
-  | { type: 'setSettings'; periodMinutes?: number; overtimeMinutes?: number; at: number }
+  | { type: 'setSettings'; periodMinutes?: number; overtimeMinutes?: number; clockRate?: number; at: number }
   | { type: 'newGame'; at: number }
   | { type: 'tick'; at: number }
 export function reduce(state: GameState, action: Action): GameState
@@ -119,16 +129,18 @@ export type Command = WithoutAt<Action>
 | `foul` | `fouls = max(0, fouls + delta)`. No upper limit. |
 | `adjustGame` | Only while stopped (ignored while running). Game clock clamped to `[0, periodLengthMs(period)]`. |
 | `adjustShot` | Only while stopped. Shot clock clamped to `[0, 24_000]`. |
+| `setGame` | Game clock = `ms` clamped to `[0, periodLengthMs(period)]`, also while running (it goes on from the new value: the operator matches the court clock without stopping). Non-finite `ms` ignored. |
+| `setShot` | Shot clock = `ms` clamped to `[0, 24_000]`, running if and only if the game clock runs (like a 24/14 reset). Non-finite `ms` ignored. |
 | `nextPeriod` | Only while stopped. `period + 1`; game clock = the new period's length; shot clock = 24 s; both stopped. Team fouls reset to 0 when entering periods 2, 3 and 4. Entering an overtime (5+) keeps the fouls (FIBA: overtime fouls count as the 4th quarter). |
 | `setTeam` | `name` is trimmed and cut to `MAX_NAME_LENGTH`; an empty name keeps the old one. `color` must be `#rrggbb`, otherwise ignored. |
-| `setSettings` | Non-finite values are ignored; others are rounded to an integer and clamped: `periodMinutes` 1–20, `overtimeMinutes` 1–10. If the game clock is stopped and still equals the old length of the current period (the period has not started), it is set to the new length. |
+| `setSettings` | Non-finite values are ignored; others are rounded to an integer and clamped: `periodMinutes` 1–20, `overtimeMinutes` 1–10. If the game clock is stopped and still equals the old length of the current period (the period has not started), it is set to the new length. `clockRate` is clamped to 0.8–1.2 and snapped to the 0.005 step; running clocks are re-based at `at` (`remainingMs` = what they show at `at` under the old rate, `startedAt = at`) so the new speed only applies from then on. |
 | `newGame` | Back to period 1 with scores, fouls and clocks reset; keeps team names, colors and settings. |
 | `tick` | Only the settle step. |
 
 ### 2.4 Settle (expiry)
 
 `settle(state, now)` stops every running clock that has reached 0 by `now`, **at the instant it reached 0**
-(expiry = `startedAt + remainingMs`), not at `now`:
+(`expiresAt(clock, clockRate)`), not at `now`:
 
 - The shot clock expiring stops **only the shot clock**, at 0. FIBA uses running time: the game clock goes on
   until the official stops it on the whistle.
@@ -152,12 +164,17 @@ All values are floored (a clock shows 0 only when it has run out, as on FIBA boa
   below five seconds → `S.t` (`4_999 → "4.9"`, `0 → "0.0"`).
 - `periodLabel(period)`: 1–4 → `"CUARTO 1"` … `"CUARTO 4"`; 5 → `"TIEMPO EXTRA"`; 6+ → `"TIEMPO EXTRA 2"`,
   `"TIEMPO EXTRA 3"`, …
+- `parseClockInput(text)`: a time typed by the operator → ms, or `null`. Accepts `M:SS` (`"4:30"`), seconds
+  (`"45"`, up to 4 digits: `"120"`), and one decimal after either, with a dot or a comma (`"4:30.5"`, `"12,5"`);
+  surrounding spaces are ignored. It reads back everything the clocks display.
+- `formatClockRate(rate)`: `1.005 → "100,5 %"`.
 
 ## 4. Validation (`validate.ts`)
 
 `parseGame(value: unknown): GameState | null` accepts only a complete, well-typed `GameState` with
 `version: 1` (finite numbers, non-negative scores/fouls/remaining, period ≥ 1, `startedAt` number or null,
-string names, `#rrggbb` colors, settings in range). Anything else returns `null`. Every state that arrives
+string names, `#rrggbb` colors, settings in range). A missing `settings.clockRate` reads as 1 (games saved before
+the clock speed existed). Anything else returns `null`. Every state that arrives
 from another window or from localStorage goes through it: that input is untrusted.
 
 ## 5. Sync between windows (`sync/link.ts`)
@@ -249,7 +266,14 @@ windows put the clock panel on top with the teams below (one column on a phone).
   it shows what is typed — spaces, an empty field — until it loses focus, while the game keeps the trimmed
   name), color input (`<input type="color">`), score with `+1` `+2` `+3` `−1` buttons, team fouls with `+1` `−1`
   buttons (fouls in the alert color from 4).
-- **Settings:** minutes per quarter (1–20) and per overtime (1–10) as `<select>`s.
+- **Exact time (pencil):** a `✎` button next to the game clock (`Editar tiempo de juego`) and next to the shot
+  clock (`Editar posesión`) opens a small form under it: a text field (`Valor de tiempo de juego` /
+  `Valor de posesión`) prefilled with the value on display and selected, `OK` (or Enter) sends `setGame` /
+  `setShot` with `parseClockInput`, `Cancelar` (or Escape) closes it. Text it cannot read keeps the form open with
+  `role="alert"` `Escribilo así: 4:30, 45 o 12.5`. Works while the clocks run.
+- **Settings:** minutes per quarter (1–20) and per overtime (1–10) as `<select>`s; `Velocidad de los relojes`:
+  `−` / `+` buttons (`Velocidad −0,5 %` / `Velocidad +0,5 %`, disabled at the limits), the value
+  (`formatClockRate`, highlighted when not 100 %) and `Normal` (back to 100 %, disabled at 100 %).
 - **Shortcut legend** listing the table below.
 - State: `useReducer(reduce, …)` initialised from `loadGame() ?? initialGame()`; the UI sends `Command`s and a
   small `send(command)` stamps `at: Date.now()` before dispatching.

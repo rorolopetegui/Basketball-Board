@@ -1,5 +1,40 @@
 import { describe, expect, it } from 'vitest'
-import { formatGameClock, formatShotClock, periodLabel } from './format'
+import { formatClockRate, formatGameClock, formatShotClock, parseClockInput, periodLabel } from './format'
+
+describe('parseClockInput', () => {
+  it('reads minutes:seconds, seconds and tenths (with a dot or a comma)', () => {
+    expect(parseClockInput('4:30')).toBe(270_000)
+    expect(parseClockInput('10:00')).toBe(600_000)
+    expect(parseClockInput('0:07.2')).toBe(7_200)
+    expect(parseClockInput(' 4:05 ')).toBe(245_000)
+    expect(parseClockInput('45')).toBe(45_000)
+    expect(parseClockInput('45.3')).toBe(45_300)
+    expect(parseClockInput('12,5')).toBe(12_500)
+    expect(parseClockInput('120')).toBe(120_000)
+  })
+
+  it('reads back what the clocks display (the editor starts with it)', () => {
+    expect(parseClockInput('9:59')).toBe(599_000)
+    expect(parseClockInput('59.9')).toBe(59_900)
+    expect(parseClockInput('0.0')).toBe(0)
+    expect(parseClockInput('24')).toBe(24_000)
+    expect(parseClockInput('4.9')).toBe(4_900)
+  })
+
+  it('rejects anything else', () => {
+    for (const text of ['', 'abc', '4:75', '4:', ':30', '1:2:3', '4.30.1', '-5', '4:30.55', '12345']) {
+      expect(parseClockInput(text)).toBeNull()
+    }
+  })
+})
+
+describe('formatClockRate', () => {
+  it('shows the speed as a percentage with a decimal comma', () => {
+    expect(formatClockRate(1)).toBe('100,0 %')
+    expect(formatClockRate(1.005)).toBe('100,5 %')
+    expect(formatClockRate(0.97)).toBe('97,0 %')
+  })
+})
 
 describe('formatGameClock', () => {
   it('shows M:SS at one minute and above', () => {
